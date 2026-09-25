@@ -26,4 +26,16 @@
             <argument name="toolRegistry" xsi:type="object">Mbm\MagoMcp\VirtualType\ToolRegistry</argument>
         </arguments>
     </type>
+
+    <!--
+        AbstractSkill::execute() (in the base module) makes its own native-ACL check via the
+        shared, session-bound Magento\Framework\Authorization::isAllowed(), independent of the
+        ToolRegistry permission checker above. This plugin redirects that one check to
+        AdminAclResolver for the specific admin the current MCP request resolved to
+        (McpRequestContext, set in Controller\Mago\Index), and is a no-op for every other
+        (real admin session) request.
+    -->
+    <type name="Magento\Framework\Authorization">
+        <plugin name="mbm_mago_mcp_authorization" type="Mbm\MagoMcp\Plugin\AuthorizationPlugin"/>
+    </type>
 </config>

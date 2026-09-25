@@ -14,6 +14,7 @@ use Magento\Framework\App\Request\InvalidRequestException;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\Controller\Result\JsonFactory;
 use Mbm\MagoMcp\Model\Config;
+use Mbm\MagoMcp\Model\McpRequestContext;
 use Mbm\MagoMcp\Model\TokenRepository;
 use Mbm\MagoMcp\Service\McpService;
 
@@ -38,6 +39,7 @@ class Index extends Action implements HttpPostActionInterface, CsrfAwareActionIn
         private readonly Config $config,
         private readonly TokenRepository $tokenRepository,
         private readonly McpService $mcpService,
+        private readonly McpRequestContext $mcpRequestContext,
         private readonly JsonFactory $resultJsonFactory
     ) {
         parent::__construct($context);
@@ -61,6 +63,10 @@ class Index extends Action implements HttpPostActionInterface, CsrfAwareActionIn
                 'error' => ['code' => -32002, 'message' => 'Unauthorized'],
             ]);
         }
+        // See Plugin\AuthorizationPlugin: makes the base module's own session-bound
+        // ACL checks (AbstractSkill::execute) resolve against this admin instead of
+        // a non-existent admin session, for the lifetime of this request only.
+        $this->mcpRequestContext->setAdminUserId($adminUserId);
 
         $body = json_decode((string) $this->getRequest()->getContent(), true);
         if (!is_array($body)) {
