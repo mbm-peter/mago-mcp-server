@@ -7,7 +7,6 @@ declare(strict_types=1);
 namespace Mbm\MagoMcp\Model;
 
 use Magento\Framework\App\Config\ScopeConfigInterface;
-use Magento\Framework\Encryption\EncryptorInterface;
 use Magento\Store\Model\ScopeInterface;
 
 /**
@@ -16,12 +15,10 @@ use Magento\Store\Model\ScopeInterface;
 class Config
 {
     private const XML_PATH_ENABLED = 'mago_mcp/general/enabled';
-    private const XML_PATH_API_KEY = 'mago_mcp/general/api_key';
     private const XML_PATH_WRITE_ACCESS = 'mago_mcp/general/write_access';
 
     public function __construct(
-        private readonly ScopeConfigInterface $scopeConfig,
-        private readonly EncryptorInterface $encryptor
+        private readonly ScopeConfigInterface $scopeConfig
     ) {
     }
 
@@ -32,17 +29,6 @@ class Config
             ScopeInterface::SCOPE_STORE,
             $storeId
         );
-    }
-
-    public function getApiKey(?int $storeId = null): string
-    {
-        $value = (string) $this->scopeConfig->getValue(
-            self::XML_PATH_API_KEY,
-            ScopeInterface::SCOPE_STORE,
-            $storeId
-        );
-
-        return $value !== '' ? $this->encryptor->decrypt($value) : '';
     }
 
     public function isWriteAccessAllowed(?int $storeId = null): bool

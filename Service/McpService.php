@@ -18,9 +18,15 @@ use Mbm\MagoMcp\Model\Config;
  * session (e.g. from an editor's or agent's MCP client) at /mcp/mago.
  *
  * Supported methods: initialize, notifications/initialized, tools/list, tools/call.
- * No admin session exists on this route, so admin ACL-based permission checks
- * (PermissionChecker) do not apply here; the only gate is the module's own
- * "Allow Write Tools" config toggle plus the API key checked by the controller.
+ *
+ * Each request is scoped to the admin user whose Bearer token was presented
+ * (resolved by the controller via TokenRepository and passed into handle()).
+ * ToolRegistry is wired here with McpPermissionChecker (etc/di.xml), so the
+ * same per-user mago_skill_permission grants and ACL fallback the admin chat
+ * panel honors for that admin apply identically over MCP — a token only ever
+ * unlocks what its own admin user could already do. The module's own
+ * "Allow Write Tools" toggle is an additional, global gate on top: write
+ * actions require both the calling admin's own write grant AND the toggle.
  */
 class McpService
 {
@@ -38,9 +44,10 @@ class McpService
      * payload, or null when no response is required (a notification).
      *
      * @param array<string, mixed> $request
+     * @param int $adminUserId The admin user the caller's Bearer token resolved to
      * @return array<string, mixed>|null
      */
-    public function handle(array $request): ?array
+    public function handle(array $request, int $adminUserId): ?array
     {
         $id = $request['id'] ?? null;
         $method = (string) ($request['method'] ?? '');
@@ -49,8 +56,8 @@ class McpService
         try {
             $result = match ($method) {
                 'initialize' => $this->initialize(),
-                'tools/list' => $this->toolsList(),
-                'tools/call' => $this->toolsCall($params),
+                'tools/list' => $this->toolsList($adminUserId),
+                'tools/call' => $this->toolsCall($params, $adminUserId),
                 'ping' => [],
                 'notifications/initialized' => null,
                 default => throw new \RuntimeException("Method not found: {$method}", -32601),
@@ -95,10 +102,10 @@ class McpService
     /**
      * @return array<string, mixed>
      */
-    private function toolsList(): array
+    private function toolsList(int $adminUserId): array
     {
         $tools = [];
-        foreach ($this->toolRegistry->getToolDefinitions() as $definition) {
+        foreach ($this->toolRegistry->getToolDefinitions($adminUserId) as $definition) {
             $tools[] = [
                 'name' => $definition['name'],
                 'description' => $definition['description'],
@@ -112,14 +119,16 @@ class McpService
      * @param array<string, mixed> $params
      * @return array<string, mixed>
      */
-    private function toolsCall(array $params): array
+    private function toolsCall(array $params, int $adminUserId): array
     {
         $name = (string) ($params['name'] ?? '');
         $arguments = is_array($params['arguments'] ?? null) ? $params['arguments'] : [];
 
-        $tool = $this->toolRegistry->getToolByName($name);
+        // getTool() (not getToolByName()) filters by this admin's own enabled/available
+        // tools, so a token can never reach a tool its admin user has no grant for at all.
+        $tool = $this->toolRegistry->getTool($name, $adminUserId);
         if ($tool === null) {
-            throw new \RuntimeException("Unknown tool: {$name}", -32602);
+            throw new \RuntimeException("Unknown or unavailable tool: {$name}", -32602);
         }
 
         $isReadOnly = $tool->isReadOnlyAction($arguments);
@@ -131,6 +140,13 @@ class McpService
             );
         }
 
+        if (!$this->toolRegistry->isCallAllowed($tool, $arguments, $adminUserId)) {
+            return $this->toolErrorContent(
+                'Your admin account does not have permission to perform this action. '
+                . 'Ask an administrator to grant it under Mago Assistant > Skills & Permissions.'
+            );
+        }
+
         // Writes require an explicit confirmation round-trip: the client must resend the same
         // call with arguments.confirm = true after showing the impacts to its own user. This
         // mirrors the admin chat panel's confirm-before-write UX, enforced server-side here
@@ -138,9 +154,11 @@ class McpService
         $confirmed = (bool) ($arguments['confirm'] ?? false);
         if (!$isReadOnly && !$confirmed) {
             unset($arguments['confirm']);
-            return $this->confirmationRequiredContent($tool, $arguments);
+            return $this->confirmationRequiredContent($tool, $arguments, $adminUserId);
         }
         unset($arguments['confirm']);
+
+        $arguments['_admin_user_id'] = $adminUserId;
 
         try {
             $result = $tool->execute($arguments);
@@ -163,10 +181,10 @@ class McpService
      * @param array<string, mixed> $arguments
      * @return array<string, mixed>
      */
-    private function confirmationRequiredContent(ToolInterface $tool, array $arguments): array
+    private function confirmationRequiredContent(ToolInterface $tool, array $arguments, int $adminUserId): array
     {
         $impacts = $tool instanceof IrreversibleToolInterface
-            ? $tool->getImpacts($arguments, 0)
+            ? $tool->getImpacts($arguments, $adminUserId)
             : [];
 
         $payload = [

@@ -10,20 +10,12 @@
                 <label>General</label>
                 <field id="enabled" translate="label" type="select" sortOrder="10" showInDefault="1" showInWebsite="0" showInStore="0">
                     <label>Enabled</label>
-                    <comment>Exposes Mago's tools at /mcp/mago over the Model Context Protocol, outside the admin session.</comment>
+                    <comment>Exposes Mago's tools at /mcp/mago over the Model Context Protocol, outside the admin session. Each admin user needs their own token, issued under Mago Assistant &gt; MCP Users.</comment>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
-                </field>
-                <field id="api_key" translate="label comment" type="obscure" sortOrder="20" showInDefault="1" showInWebsite="0" showInStore="0" canRestore="1">
-                    <label>API Key</label>
-                    <comment>Required as a Bearer token (Authorization: Bearer &lt;key&gt;) on every request to /mcp/mago. Stored encrypted. Leave empty to generate one, then save.</comment>
-                    <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
-                    <depends>
-                        <field id="enabled">1</field>
-                    </depends>
                 </field>
                 <field id="write_access" translate="label comment" type="select" sortOrder="30" showInDefault="1" showInWebsite="0" showInStore="0">
                     <label>Allow Write Tools</label>
-                    <comment>When disabled, only read-only tool actions may be called over MCP, regardless of any admin ACL.</comment>
+                    <comment>Global gate on top of each admin's own write grant: when disabled, no write actions may be called over MCP by anyone, regardless of an individual admin's Skills &amp; Permissions grant.</comment>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                     <depends>
                         <field id="enabled">1</field>

@@ -9,6 +9,10 @@
         "magento/framework": "*",
         "magento/module-store": "*",
         "magento/module-config": "*",
+        "magento/module-backend": "*",
+        "magento/module-user": "*",
+        "magento/module-authorization": "*",
+        "magento/module-ui": "*",
         "mago-assistant/mago": "*"
     },
     "autoload": {

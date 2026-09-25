@@ -11,6 +11,9 @@
                         </resource>
                     </resource>
                 </resource>
+                <resource id="Mbm_MagoMcp::tokens" title="MCP Users">
+                    <resource id="Mbm_MagoMcp::tokens_manage" title="Manage MCP Tokens"/>
+                </resource>
             </resource>
         </resources>
     </acl>

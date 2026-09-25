@@ -3,6 +3,8 @@
         xsi:noNamespaceSchemaLocation="urn:magento:framework:Module/etc/module.xsd">
     <module name="Mbm_MagoMcp" setup_version="1.0.0">
         <sequence>
+            <module name="Magento_User"/>
+            <module name="Magento_Authorization"/>
             <module name="MagoAssistant_Mago"/>
         </sequence>
     </module>

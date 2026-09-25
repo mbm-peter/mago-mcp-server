@@ -2,15 +2,22 @@
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/di.xsd">
 
     <!--
-        This route has no admin session, so MagoAssistant's PermissionChecker (which resolves
-        admin ACL / mago_skill_permission grants for an admin user id) cannot apply here. Reuse
-        the shared ToolRegistry's tool list, but with the permission checker stripped: gating
-        for this server is the module's own "Allow Write Tools" toggle (Mbm\MagoMcp\Model\Config),
-        enforced in McpService::toolsCall, not per-tool ACL.
+        This route has no admin session, so MagoAssistant's PermissionChecker cannot resolve a
+        "current" admin via AuthorizationInterface for its ACL fallback (there is no session/cookie
+        to hang a role off). McpPermissionChecker (Mbm\MagoMcp\Model\McpPermissionChecker) extends
+        it and replaces only that fallback with AdminAclResolver, which looks the calling admin's
+        role up directly from the admin_user_id resolved from their Bearer token
+        (Mbm\MagoMcp\Model\TokenRepository), see Controller/Mago/Index.php and McpService. This
+        virtualType is otherwise identical to the base module's own ToolRegistry wiring
+        (magento-maggy-assistant-base/etc/di.xml): same tool list, but this permission checker
+        instead of the shared one, so every MCP call is scoped to its own admin user's
+        mago_skill_permission grants / ACL exactly as if that admin were using the chat panel.
+        The module's own "Allow Write Tools" toggle (Mbm\MagoMcp\Model\Config) is an additional,
+        global gate enforced in McpService::toolsCall on top of this per-admin check.
     -->
     <virtualType name="Mbm\MagoMcp\VirtualType\ToolRegistry" type="MagoAssistant\Mago\Service\Tool\ToolRegistry">
         <arguments>
-            <argument name="permissionChecker" xsi:type="null"/>
+            <argument name="permissionChecker" xsi:type="object">Mbm\MagoMcp\Model\McpPermissionChecker</argument>
         </arguments>
     </virtualType>
 

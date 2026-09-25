@@ -1,0 +1,54 @@
+<?php
+/**
+ * Copyright © Made by Mouses
+ */
+
+/** @var \Mbm\MagoMcp\Block\Adminhtml\TokenGenerate $block */
+$users = $block->getAdminUsers();
+$generateUrl = $block->getGenerateUrl();
+?>
+<div class="admin__page-section">
+    <div class="admin__page-section-title">
+        <span class="title"><?= $block->escapeHtml(__('Generate MCP Token')) ?></span>
+    </div>
+    <div class="admin__page-section-content">
+        <p><?= $block->escapeHtml(
+            __(
+                'Every admin using the MCP server at /mcp/mago needs their own token. '
+                . 'It is scoped to that admin\'s own tool permissions (Mago Assistant > Skills & Permissions) '
+                . 'and is shown only once here, at generation time.'
+            )
+        ) ?></p>
+        <?php if (empty($users)): ?>
+            <p><?= $block->escapeHtml(__('No active admin users found.')) ?></p>
+        <?php else: ?>
+            <form id="mcp-token-generate-form" action="<?= $block->escapeUrl($generateUrl) ?>" method="post">
+                <?= /* @noEscape */ $block->getBlockHtml('formkey') ?>
+                <div class="admin__field field">
+                    <label class="admin__field-label" for="mcp_admin_user_id"><?= $block->escapeHtml(__('Admin User')) ?></label>
+                    <div class="admin__field-control">
+                        <select id="mcp_admin_user_id" name="admin_user_id" class="admin__control-select">
+                            <option value=""><?= $block->escapeHtml(__('-- Select an admin user --')) ?></option>
+                            <?php foreach ($users as $user): ?>
+                                <option value="<?= $block->escapeHtmlAttr((string) $user['user_id']) ?>">
+                                    <?= $block->escapeHtml(
+                                        trim($user['firstname'] . ' ' . $user['lastname']) . ' (' . $user['username'] . ')'
+                                    ) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+                <div class="admin__field field">
+                    <label class="admin__field-label" for="mcp_label"><?= $block->escapeHtml(__('Label (optional)')) ?></label>
+                    <div class="admin__field-control">
+                        <input id="mcp_label" name="label" type="text" class="admin__control-text" placeholder="<?= $block->escapeHtmlAttr(__('e.g. laptop, CI job')) ?>"/>
+                    </div>
+                </div>
+                <div class="admin__field field">
+                    <button type="submit" class="action-primary"><?= $block->escapeHtml(__('Generate Token')) ?></button>
+                </div>
+            </form>
+        <?php endif; ?>
+    </div>
+</div>

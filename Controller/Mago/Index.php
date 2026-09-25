@@ -13,8 +13,8 @@ use Magento\Framework\App\CsrfAwareActionInterface;
 use Magento\Framework\App\Request\InvalidRequestException;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\Controller\Result\JsonFactory;
-use Magento\Framework\Encryption\Helper\Security;
 use Mbm\MagoMcp\Model\Config;
+use Mbm\MagoMcp\Model\TokenRepository;
 use Mbm\MagoMcp\Service\McpService;
 
 /**
@@ -22,15 +22,21 @@ use Mbm\MagoMcp\Service\McpService;
  *
  * JSON-RPC 2.0 endpoint implementing the Model Context Protocol "tools"
  * surface for Mago Assistant's skills, reachable without an admin session.
- * Authenticated with a static Bearer token (Stores > Configuration >
- * Mago Assistant > MCP Server), not Magento admin cookies/ACL, so this is a
- * plain frontend route and deliberately exempt from admin/form-key CSRF.
+ *
+ * Authenticated with a per-admin-user Bearer token (Stores > Configuration >
+ * Mago Assistant > MCP Server > MCP Users, or Mago Assistant > MCP Users
+ * grid), not Magento admin cookies/ACL — every request is scoped to whichever
+ * admin user the token was issued to (see McpService/McpPermissionChecker),
+ * so multiple admins can each hold their own token with their own tool
+ * permissions. This is a plain frontend route, deliberately exempt from
+ * admin/form-key CSRF since there is no admin session to protect.
  */
 class Index extends Action implements HttpPostActionInterface, CsrfAwareActionInterface
 {
     public function __construct(
         Context $context,
         private readonly Config $config,
+        private readonly TokenRepository $tokenRepository,
         private readonly McpService $mcpService,
         private readonly JsonFactory $resultJsonFactory
     ) {
@@ -48,7 +54,8 @@ class Index extends Action implements HttpPostActionInterface, CsrfAwareActionIn
             ]);
         }
 
-        if (!$this->isAuthorized()) {
+        $adminUserId = $this->resolveAdminUserId();
+        if ($adminUserId === null) {
             return $result->setHttpResponseCode(401)->setData([
                 'jsonrpc' => '2.0',
                 'error' => ['code' => -32002, 'message' => 'Unauthorized'],
@@ -70,7 +77,7 @@ class Index extends Action implements HttpPostActionInterface, CsrfAwareActionIn
 
         $responses = [];
         foreach ($requests as $request) {
-            $response = $this->mcpService->handle(is_array($request) ? $request : []);
+            $response = $this->mcpService->handle(is_array($request) ? $request : [], $adminUserId);
             if ($response !== null) {
                 $responses[] = $response;
             }
@@ -84,19 +91,14 @@ class Index extends Action implements HttpPostActionInterface, CsrfAwareActionIn
         return $result->setData($isBatch ? $responses : $responses[0]);
     }
 
-    private function isAuthorized(): bool
+    private function resolveAdminUserId(): ?int
     {
-        $configuredKey = $this->config->getApiKey();
-        if ($configuredKey === '') {
-            return false;
-        }
-
         $header = (string) $this->getRequest()->getHeader('Authorization');
         if (!str_starts_with($header, 'Bearer ')) {
-            return false;
+            return null;
         }
 
-        return Security::compareStrings(substr($header, 7), $configuredKey);
+        return $this->tokenRepository->resolveAdminUserId(substr($header, 7));
     }
 
     public function createCsrfValidationException(RequestInterface $request): ?InvalidRequestException
