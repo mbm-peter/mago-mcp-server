@@ -1,0 +1,22 @@
+{
+    "name": "mbm/module-mago-mcp",
+    "description": "Exposes Mago Assistant's tools as an MCP server at /mcp/mago, usable outside the Magento admin session.",
+    "type": "magento2-module",
+    "version": "1.0.0",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.2",
+        "magento/framework": "*",
+        "magento/module-store": "*",
+        "magento/module-config": "*",
+        "mago-assistant/mago": "*"
+    },
+    "autoload": {
+        "files": [
+            "registration.php"
+        ],
+        "psr-4": {
+            "Mbm\\MagoMcp\\": ""
+        }
+    }
+}

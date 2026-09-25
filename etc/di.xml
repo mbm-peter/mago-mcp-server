@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/di.xsd">
+
+    <!--
+        This route has no admin session, so MagoAssistant's PermissionChecker (which resolves
+        admin ACL / mago_skill_permission grants for an admin user id) cannot apply here. Reuse
+        the shared ToolRegistry's tool list, but with the permission checker stripped: gating
+        for this server is the module's own "Allow Write Tools" toggle (Mbm\MagoMcp\Model\Config),
+        enforced in McpService::toolsCall, not per-tool ACL.
+    -->
+    <virtualType name="Mbm\MagoMcp\VirtualType\ToolRegistry" type="MagoAssistant\Mago\Service\Tool\ToolRegistry">
+        <arguments>
+            <argument name="permissionChecker" xsi:type="null"/>
+        </arguments>
+    </virtualType>
+
+    <type name="Mbm\MagoMcp\Service\McpService">
+        <arguments>
+            <argument name="toolRegistry" xsi:type="object">Mbm\MagoMcp\VirtualType\ToolRegistry</argument>
+        </arguments>
+    </type>
+</config>
